@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom';
 import './index.css';
 
 function Square(props) {
-    // function componennt that only contains a render method and accepts props without having to worry about state
-    // It accepts a function passed to it as a prop to define what it does when you click on it as well as a value defined in the constructor of the topmost parent (null and then X or O)
+    // this is a function component that only contains a render method and accepts props without having to worry about state
+    // It accepts a method passed to it as a prop to define what it does when you click on it as well as a value defined in the constructor of the topmost parent (null and then X or O)
     return (
         <button className="square" onClick={props.onClick}>
             {props.value}
@@ -21,7 +21,7 @@ class Board extends React.Component {
             onClick={() => this.props.onClick(i)} 
         />;
     }
-
+    // every class needs a render function. what will it return?
     render() {
         return (
         <div>
@@ -46,39 +46,63 @@ class Board extends React.Component {
 }
 
 class Game extends React.Component {
+    // constructor (init) created here to manage the state that gets passed down to children
     constructor(props) {
         super(props)
         // initializing this history as an array of squares. When accessing it, it will contain step(array of squares at current time), move(the current move number that you're at)
+        // stepNumber used to allow time travel and keeps track of history
+        // also creating a boolean to switch between X and O
         this.state = {
             history: [{
                 squares: Array(9).fill(null),
             }],
+            stepNumber: 0,
             xIsNext: true,
         };
     }
 
+    // method that handles how a click behaves for each square and gets passed down as a prop to the children
     handleClick(i) {
-        const history = this.state.history;
+        // making copy of history array and slicing it from beginning of history (0) to the stepnumber we choose for our time travel (allowing us to delete future history that is incorrect when we time travel)
+        const history = this.state.history.slice(0, this.state.stepNumber + 1);
         const current = history[history.length - 1];
-        const squares = current.squares.slice(); // creating copy of array. better for immutability for re-rendering and detecting changes and ease of other function like time travel
+        // slice() is creating copy of array at this point in time. immutability is better for re-rendering and detecting changes and ease of other function like time travel
+        const squares = current.squares.slice(); 
+        // make sure that if we have a winner or that a square is already clicked on, a click returns nothing (does nothing) - return exits the function
         if (calculateWinner(squares) || squares[i]) {
             return;
         }
+        // turnary statement to render that square with either an X or an O
         squares[i] = this.state.xIsNext ? 'X' : 'O';
-        // updating our history and concatenating instead of pushing to our original array: this doesn't mutate original array
+        // updating our state - add history by concatenating instead of pushing to our original array: this doesn't mutate original array; setting the current stepnumber to the updated length of history, also alternating the X or O
         this.setState({
             history: history.concat([{
                 squares: squares,
             }]),
+            stepNumber: history.length,
             xIsNext: !this.state.xIsNext,
         });
     }
 
+    // jumpTo method to move to a specific time in history, update stepnumber, and set xIsNext to true if number that we're changin stepNumber to is even
+    jumpTo(step) {
+        this.setState({
+            stepNumber: step,
+            xIsNext: (step % 2) === 0,
+        });
+    }
+
     render() {
+        // const or let is only within the scope of the brackets, so need to redefine const history again in this method
         const history = this.state.history;
-        const current = history[history.length - 1];
+        // rendering currently selected move according to stepNumber
+        const current = history[this.state.stepNumber]; 
         const winner = calculateWinner(current.squares);
         
+        // moves is an array of html lists (dynamic html list)  that call a function "jumpTo(move)" with a description describing the move number based on an evergrowing history array
+        // map function in JS allows us to modify the elements in a particular way and returned in a seperate array called moves
+        // it takes in an argument of a callback function in order to manipulate your data - here using ES6 arrow function syntax
+        // under the hood, .map behaves as a for loop iterating over each element of an array modifying the elements as needed and then pushing the modified elements into new array
         const moves = history.map((step, move) => {
             // if move is not 0, then description will describe the move. Otherwise say go to game start.
             // moves RERENDERS EVERYTIME history gets updated in setState().
@@ -90,7 +114,7 @@ class Game extends React.Component {
                 // when rendering a list, each list item needs a key
                 // usually, it must be a key/id that is unique between components and their siblings
                 // you MUST have proper keys when building dynamic lists. if no key is specified, react will warn, and use array index as key by default
-                // this is generally probelmatic when trying to re-order a list items or inserting/removing list items
+                // this is generally problematic when trying to re-order a list items or inserting/removing list items
                 // here, our moves are never re-ordered, deleted, or inserted so its safe to use index as key
                 <li key={move}>
                     <button onClick={() => this.jumpTo(move)}>{desc}</button>
@@ -98,6 +122,7 @@ class Game extends React.Component {
             );
         });
 
+        // here we use let because even though it's scoped within the render bracket (just like const), we can reassign status, so we use let (const doesnt allow reassignment) - recall var is globally scoped within the class.
         let status;
         if (winner) {
             status = 'Winner: ' + winner;
@@ -126,12 +151,13 @@ class Game extends React.Component {
 
 // ========================================
 
+// Mount React to our Root HTML page
 ReactDOM.render(
     <Game />,
     document.getElementById('root')
 );
 
-// helper function to calculate the winner
+// helper function to calculate the winner - doesn't render any htnl, just returns an X, O or nothing.
 function calculateWinner(squares) {
     const lines = [
         [0, 1, 2],
